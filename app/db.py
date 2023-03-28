@@ -1,36 +1,22 @@
-import mysql.connector
-import click
 
-from flask import config, current_app, g
-from flask import cli
+import click
+from flask import current_app, g
 from flask.cli import with_appcontext
-from .schema import instructions
+from flask_pymongo import PyMongo
 from app.domain.mail import Mail
 
 def get_db():
     if 'db' not in g:
-        g.db = mysql.connector.connect(
-            host = current_app.config['DATABASE_HOST'],
-            user = current_app.config['DATABASE_USER'],
-            password = current_app.config['DATABASE_PASSWORD'],
-            database = current_app.config['DATABASE'],
-        )
-        g.db_cursor = g.db.cursor(dictionary=True)
-    return g.db, g.db_cursor
+        mongodb_client = PyMongo(current_app, uri=current_app.config['MONGO_URI'])
+        g.db = mongodb_client.db
+    return g.db
 
 def close_db(e = None):
-    db = g.pop('db', None)
-
-    if db is not None:
-        db.close()
+    g.pop('db', None)
 
 def init_db():
-    db, c = get_db()
-
-    for i in instructions:
-        c.execute(i)
-    
-    db.commit()
+    db = get_db()
+    print(db)
 
 @click.command('init-db')
 @with_appcontext
@@ -43,26 +29,28 @@ def init_app(app):
     app.cli.add_command(init_db_command)
 
 def get_mails():
-    db, db_cursor = get_db()
+    db = get_db()
     mails = []
-    db_cursor.execute("SELECT * FROM email")
-    rows = db_cursor.fetchall()
-    for row in rows:
-        mail = Mail(id = row['id'],email = row['email'], subject = row['subject'], content = row['content'])
+    fetchMails = db.mails.find();
+    for mail in fetchMails:
+        mail = Mail(id = mail['_id'],email = mail['email'], subject = mail['subject'], content = mail['content'])
         mails.append(mail)
     return mails
 
 def get_filtered_mails(filter):
-    db, db_cursor = get_db()
+    db = get_db()
     mails = []
-    db_cursor.execute("SELECT * FROM email where LOWER(CONCAT_WS(email, subject, content)) LIKE %s", ('%' + filter.lower() + '%',))
-    rows = db_cursor.fetchall()
-    for row in rows:
-        mail = Mail(id = row['id'],email = row['email'], subject = row['subject'], content = row['content'])
+    fetchMails = db.mails.find({
+         '$or': [
+            {'email': {'$regex': filter.lower()}},
+            {'subject': {'$regex': filter.lower()}},
+            {'content': {'$regex': filter.lower()}},
+     ]})
+    for mail in fetchMails:
+        mail = Mail(id = mail['_id'],email = mail['email'], subject = mail['subject'], content = mail['content'])
         mails.append(mail)
     return mails
 
 def insert_mail(mail: Mail):
-    db, db_cursor = get_db()
-    db_cursor.execute("INSERT INTO email (email, subject, content) VALUES (%s, %s, %s)", (mail.email, mail.subject, mail.content))
-    db.commit()
+    db = get_db()
+    db.mails.insert_one({'email':mail.email, 'subject':mail.subject, 'content':mail.content})

@@ -4,15 +4,12 @@ from flask import Flask
 
 def create_app():
     app = Flask(__name__, template_folder='templates')
+    app.secret_key = os.urandom(24)
 
     app.config.from_mapping(
         SENDGRID_API_KEY = os.environ.get('SENDGRID_API_KEY'),
         SENDGRID_FROM_EMAIL = os.environ.get('SENDGRID_FROM_EMAIL'),
-        SECRET_KEY = os.environ.get('SECRET_KEY'),
-        DATABASE_HOST = os.environ.get('FLASK_DATABASE_HOST'),
-        DATABASE_PASSWORD = os.environ.get('FLASK_DATABASE_PASSWORD'),
-        DATABASE_USER = os.environ.get('FLASK_DATABASE_USER'),
-        DATABASE = os.environ.get('FLASK_DATABASE')
+        MONGO_URI = os.environ.get('MONGO_URI')
     )
 
     from . import db

@@ -10,7 +10,6 @@ Jinja2==3.0.3
 MarkupSafe==2.1.2
 pycodestyle==2.10.0
 pymongo==4.3.3
-python-dotenv==1.0.0
 python-http-client==3.3.5
 sendgrid==6.9.4
 starkbank-ecdsa==2.0.3
